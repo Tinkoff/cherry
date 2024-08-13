@@ -3,7 +3,7 @@ object Version {
 
   val scalaTest = "3.2.19"
 
-  val munit = "0.7.29"
+  val munit = "1.0.1"
 
   val catsParse = "0.3.6"
 }
