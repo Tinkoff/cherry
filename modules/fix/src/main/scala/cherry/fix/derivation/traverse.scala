@@ -26,7 +26,7 @@ inline def deriveTraverse[T[+x]]: Traverse[T] =
           def traverse[F[+_]: Monoidal, B](f: A => F[B]): F[T[B]] =
             val tx     = ta.asInstanceOf[T[x.T]]
             val elemsA = tupleFromProduct(tx)(using m)(using summonInline)
-            val elemsB = traverseTuple[m.MirroredElemTypes, F, x.T, B](elemsA)(f.asInstanceOf[x.T => F[B]])
+            val elemsB = traverseTuple[F, x.T, B](elemsA)(f.asInstanceOf[x.T => F[B]])
             val mb     = summonInline[Mirror.ProductOf[T[B]]]
             elemsB.map(mb.fromProduct)
 
@@ -54,16 +54,12 @@ type Replace[T <: Tuple, A, B, F[+_]] <: F[Tuple] = T match
       case F[t] => F[head *: t]
   case EmptyTuple   => F[EmptyTuple]
 
-inline def traverseTuple[T <: Tuple, F[+_], A, B](t: T)(f: A => F[B])(using F: Monoidal[F]): F[Tuple] =
+inline def traverseTuple[F[+_], A, B](t: Tuple)(f: A => F[B])(using F: Monoidal[F]): F[Tuple] =
   inline t match
-    case c: (head *: rest) =>
-      type Head = head
-      summonFrom {
-        case eqt: (Head =:= A) =>
-          f(c.head).map2(traverseTuple[rest, F, A, B](c.tail)(f))(_ *: _)
-        case _                 =>
-          traverseTuple[rest, F, A, B](c.tail)(f).map(c.head *: _)
-      }
+    case c: (A *: rest) =>
+      f(c.head).map2(traverseTuple[F, A, B](c.tail)(f))(_ *: _)
+    case c: (_ *: rest) =>
+      traverseTuple[F, A, B](c.tail)(f).map(c.head *: _)
     case _: EmptyTuple     =>
       F.emptyTuple
 
